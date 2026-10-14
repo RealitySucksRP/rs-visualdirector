@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RS Visual Director</title>
+    <link rel="stylesheet" href="style.css?v=260" />
+</head>
+<body>
+    <div id="worldOverlay" class="world-overlay hidden" aria-hidden="true"></div>
+
+    <div id="bootNotice" class="boot-notice">
+        <strong>RS Visual Director UI Loaded</strong>
+        <span>The phone UI is waiting for the menu payload.</span>
+        <span>Use F8: <b>vclose</b> to release the mouse.</span>
+    </div>
+
+    <main id="app" class="app hidden" aria-hidden="true">
+        <section class="phone-shell" aria-label="RS Visual Director phone">
+            <div class="phone-side phone-side-left"></div>
+            <div class="phone-side phone-side-right"></div>
+
+            <div class="phone-screen">
+                <div class="wallpaper" aria-hidden="true"></div>
+                <div class="screen-shade" aria-hidden="true"></div>
+                <div class="screen-noise" aria-hidden="true"></div>
+
+                <div class="dynamic-island">
+                    <span class="island-camera"></span>
+                    <span class="island-speaker"></span>
+                </div>
+
+                <header class="phone-header">
+                    <div class="brand-lockup">
+                        <span class="rs-mark">RS</span>
+                        <div>
+                            <p class="brand-kicker">Reality Sucks RP</p>
+                            <h1 id="title">Visual Director</h1>
+                        </div>
+                    </div>
+                    <button id="closeBtn" class="close-btn" type="button" aria-label="Close menu">×</button>
+                </header>
+
+                <div class="scroll-area">
+                    <section class="selected-card ui-window" data-window="win1">
+                        <span class="window-id">win1</span>
+                        <div class="selected-topline">
+                            <span class="director-badge">WORLD MOOD CONTROL</span>
+                            <span id="modeText" class="mode-pill">SYNC</span>
+                        </div>
+                        <div class="selected-copy">
+                            <p class="eyebrow">Selected world mood</p>
+                            <div class="selected-category-row">
+                                <span id="selectedCategory">Original • None</span>
+                                <span id="selectedRatings"></span>
+                            </div>
+                            <h2 id="selectedLabel">Original GTA</h2>
+                            <p id="selectedDesc">No world mood filter. Restores the normal GTA/FiveM image.</p>
+                        </div>
+                        <div class="selected-meta">
+                            <span><b id="timecycleText">none</b><small>TIMECYCLE</small></span>
+                            <span><b id="colorText">#e5e7eb</b><small>ACCENT</small></span>
+                        </div>
+                    </section>
+
+                    <section class="status-strip ui-window" data-window="win2">
+                        <span class="window-id">win2</span>
+                        <div class="live-readout">
+                            <span class="pulse-dot"></span>
+                            <div>
+                                <small>LIVE WORLD LOOK</small>
+                                <strong id="activeLabel">ORIGINAL GTA</strong>
+                                <em id="activeName">No global style</em>
+                            </div>
+                        </div>
+                        <div class="strength-readout">
+                            <small>POWER</small>
+                            <strong id="strengthReadout">0.00</strong>
+                            <span id="glowText">#ffffff</span>
+                        </div>
+                    </section>
+
+                    <section class="mood-zone ui-window" data-window="win3">
+                        <span class="window-id">win3</span>
+                        <div class="section-heading">
+                            <div>
+                                <p class="eyebrow">Mood library</p>
+                                <h3>Choose the world</h3>
+                            </div>
+                            <span class="hint"><b id="libraryCount">0 MOODS</b> • DOUBLE CLICK</span>
+                        </div>
+                        <div id="styleGrid" class="style-grid" role="list"></div>
+                    </section>
+                </div>
+
+                <section class="control-dock ui-window" data-window="win4">
+                    <span class="window-id">win4</span>
+                    <div class="strength-control">
+                        <div class="strength-labels">
+                            <label for="strengthRange">Mood strength</label>
+                            <strong id="selectedStrengthValue">0.00</strong>
+                            <span id="strengthMin">0.00</span><span id="strengthMax">0.00</span>
+                        </div>
+                        <input id="strengthRange" type="range" min="0" max="1" step="0.01" value="0.00" />
+                        <div class="dock-actions">
+                            <button id="clearBtn" class="off-btn" type="button">TURN OFF</button>
+                            <button id="compareBtn" class="compare-btn" type="button" title="Hold to compare with Original GTA">HOLD ORIGINAL</button>
+                        </div>
+                    </div>
+
+                    <button id="applyBtn" class="apply-orb" type="button" aria-label="Apply selected world mood">
+                        <img src="img/neon_ring.png" alt="" />
+                        <span>APPLY</span>
+                        <small>GLOBAL</small>
+                    </button>
+                </section>
+
+                <div class="home-indicator" aria-hidden="true"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js?v=260"></script>
+</body>
+</html>
