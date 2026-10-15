@@ -1,7 +1,7 @@
 Config = {}
 
 -- ---------------------------------------------------------------
--- RS Visual Director v2.6.0
+-- RS Visual Director v2.9.0
 -- Open-source cinematic world mood director.
 -- Starts with original GTA/FiveM visuals until a mood is applied.
 -- ---------------------------------------------------------------
@@ -16,8 +16,8 @@ Config.DefaultStyle = false
 Config.AllowPersonalOverride = false
 
 Config.AdminAce      = 'rs-visualdirector.admin'
-Config.RequireAce    = true
-Config.AllowConsole  = true
+Config.RequireAce    = false -- TESTING ONLY: all players can use synchronized controls; use true for public servers
+Config.AllowConsole  = false
 
 -- Local-only creator/test commands are compiled in but not registered on live servers.
 Config.DeveloperTools = false
@@ -84,7 +84,9 @@ Config.Menu = {
     subtitle = 'Cinematic World Mood Controller',
     closeAfterApply = false,
     showExperimental = false,
-    showWindowLabels = false
+    showWindowLabels = false,
+    -- Optional local-only screenshot gallery (requires screenshot-basic running).
+    allowGameplayCaptures = true
 }
 
 -- Optional layers. Individual players can disable these with /vcomfort.

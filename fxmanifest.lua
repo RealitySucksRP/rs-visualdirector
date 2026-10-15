@@ -3,8 +3,8 @@ game 'gta5'
 lua54 'yes'
 
 author 'RealitySucksRP'
-description 'RS Visual Director v2.6.0 - open-source cinematic world mood director with framework bridge'
-version '2.6.0'
+description 'RS Visual Director v2.9.0 - scrollable studio, real private live moments'
+version '2.9.0'
 
 shared_scripts {
     'config.lua',
