@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RS Visual Director</title>
-    <link rel="stylesheet" href="style.css?v=260" />
+    <link rel="stylesheet" href="style.css?v=290" />
 </head>
 <body>
     <div id="worldOverlay" class="world-overlay hidden" aria-hidden="true"></div>
@@ -38,7 +38,14 @@
                             <h1 id="title">Visual Director</h1>
                         </div>
                     </div>
-                    <button id="closeBtn" class="close-btn" type="button" aria-label="Close menu">×</button>
+                    <div class="header-tools" aria-label="Director layout controls">
+                        <button id="viewModeBtn" class="header-tool view-switch" type="button" title="Switch phone and studio view">STUDIO</button>
+                        <button id="moveHandle" class="header-tool drag-tool" type="button" title="Hold and drag to move the phone" aria-label="Hold and drag to move phone"><span class="move-glyph" aria-hidden="true">✥</span> MOVE</button>
+                        <button id="sizeDownBtn" class="header-tool size-tool" type="button" title="Smaller phone" aria-label="Make phone smaller">−</button>
+                        <button id="sizeUpBtn" class="header-tool size-tool" type="button" title="Larger phone" aria-label="Make phone larger">+</button>
+                        <button id="resetLayoutBtn" class="header-tool reset-tool" type="button" title="Center phone and reset size" aria-label="Reset phone position and size">↺</button>
+                        <button id="closeBtn" class="close-btn" type="button" aria-label="Close menu">×</button>
+                    </div>
                 </header>
 
                 <div class="scroll-area">
@@ -84,12 +91,29 @@
                         <span class="window-id">win3</span>
                         <div class="section-heading">
                             <div>
-                                <p class="eyebrow">Mood library</p>
-                                <h3>Choose the world</h3>
+                                <p class="eyebrow">DIRECTOR / PRESET LIBRARY</p>
+                                <h3>Choose a look</h3>
                             </div>
-                            <span class="hint"><b id="libraryCount">0 MOODS</b> • DOUBLE CLICK</span>
+                            <span class="hint"><b id="libraryCount">0 LOOKS</b></span>
                         </div>
-                        <div id="styleGrid" class="style-grid" role="list"></div>
+                        <p class="library-helper">Select a look, preview it on your own screen, then explicitly apply globally.</p>
+                        <div class="gallery-tools">
+                            <div class="gallery-copy"><b>REAL GAMEPLAY GALLERY</b><span id="galleryCount">0 / 12 captured · local only</span></div>
+                            <div class="gallery-actions">
+                                <button id="captureGalleryBtn" type="button" class="capture-gallery-btn" title="Capture each mood using the local GTA game camera; requires screenshot-basic">CAPTURE 12 LOOKS</button>
+                                <button id="saveMomentBtn" type="button" class="capture-gallery-btn moment-save-btn" title="Save a genuine screenshot and recallable look from this gameplay scene; requires screenshot-basic">+ SAVE MOMENT</button>
+                                <button id="openMomentsBtn" type="button" class="capture-gallery-btn moment-open-btn" title="Browse and recall previously saved personal moments">MY MOMENTS <span id="momentsCount">0</span></button>
+                            </div>
+                        </div>
+                        <p id="galleryStatus" class="gallery-status">Gallery starts empty. Capture genuine in-game looks from your own scene.</p>
+                        <div class="filter-nav" aria-label="Mood library categories">
+                            <button id="categoryPrevBtn" class="category-arrow" type="button" title="Previous categories" aria-label="Scroll categories left">‹</button>
+                            <nav id="categoryFilters" class="category-filters" aria-label="Filter moods by category"></nav>
+                            <button id="categoryNextBtn" class="category-arrow" type="button" title="More categories" aria-label="Scroll categories right">›</button>
+                        </div>
+                        <p class="library-scroll-hint">Scroll inside the mood cards to see every look. Use ‹ › to browse categories.</p>
+                        <div id="styleGrid" class="style-grid" role="list" tabindex="0" aria-label="Scrollable cinematic mood presets"></div>
+                        <p id="noResults" class="no-results hidden">No looks in this category.</p>
                     </section>
                 </div>
 
@@ -97,29 +121,37 @@
                     <span class="window-id">win4</span>
                     <div class="strength-control">
                         <div class="strength-labels">
-                            <label for="strengthRange">Mood strength</label>
+                            <label for="strengthRange">MOOD INTENSITY</label>
                             <strong id="selectedStrengthValue">0.00</strong>
                             <span id="strengthMin">0.00</span><span id="strengthMax">0.00</span>
                         </div>
                         <input id="strengthRange" type="range" min="0" max="1" step="0.01" value="0.00" />
-                        <div class="dock-actions">
-                            <button id="clearBtn" class="off-btn" type="button">TURN OFF</button>
-                            <button id="compareBtn" class="compare-btn" type="button" title="Hold to compare with Original GTA">HOLD ORIGINAL</button>
-                        </div>
                     </div>
-
-                    <button id="applyBtn" class="apply-orb" type="button" aria-label="Apply selected world mood">
-                        <img src="img/neon_ring.png" alt="" />
-                        <span>APPLY</span>
-                        <small>GLOBAL</small>
-                    </button>
+                    <div class="dock-actions">
+                        <button id="previewBtn" class="preview-btn" type="button" title="Preview selected look only on your screen">PREVIEW LOCAL</button>
+                        <button id="clearBtn" class="off-btn" type="button" title="Restore Original GTA"><span class="action-glyph" aria-hidden="true">↺</span><span>RESTORE GTA</span></button>
+                        <button id="compareBtn" class="compare-btn" type="button" title="Hold to preview Original GTA"><span class="action-glyph" aria-hidden="true">◉</span><span>COMPARE</span></button>
+                        <button id="applyBtn" class="apply-action" type="button" aria-label="Apply selected world mood globally"><span class="apply-wordmark">APPLY LOOK <small>GLOBAL SYNC</small></span><span class="apply-arrow" aria-hidden="true">➜</span></button>
+                    </div>
                 </section>
 
+                <section id="momentsPanel" class="moments-panel hidden" role="dialog" aria-modal="true" aria-label="Saved Live Moments">
+                    <div class="moments-heading">
+                        <div><p class="eyebrow">PRIVATE / LIVE SCENES</p><h3>Saved Live Moments</h3></div>
+                        <button id="closeMomentsBtn" class="moments-close" type="button" aria-label="Close saved moments">×</button>
+                    </div>
+                    <p class="moments-description">Save a real screenshot plus its active cinematic look. RECALL selects that look for a local preview; nothing changes for other players until you press Apply Global.</p>
+                    <div class="moments-capture-row"><input id="momentNameInput" type="text" maxlength="48" placeholder="Moment name (optional)" aria-label="Name for your next live moment" /><button id="saveMomentPanelBtn" type="button" class="capture-gallery-btn moment-save-btn">SAVE LIVE MOMENT</button></div>
+                    <p id="momentStatus" class="moment-status" role="status">Saved only on this PC, up to 10 moments. Screenshot-basic is needed to capture.</p>
+                    <div id="momentsList" class="moments-list"></div>
+                </section>
+                <div id="momentLightbox" class="moment-lightbox hidden" role="dialog" aria-label="View saved screenshot"><button id="closeMomentLightboxBtn" class="moments-close" type="button" aria-label="Close screenshot">×</button><img id="momentLightboxImage" alt="Captured live gameplay moment" /><p id="momentLightboxTitle"></p></div>
+                <div id="previewBanner" class="preview-banner hidden" role="status">LOCAL PREVIEW — Only you can see this look. Apply globally to sync.</div>
                 <div class="home-indicator" aria-hidden="true"></div>
             </div>
         </section>
     </main>
 
-    <script src="app.js?v=260"></script>
+    <script src="app.js?v=290"></script>
 </body>
 </html>

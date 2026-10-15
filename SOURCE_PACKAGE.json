@@ -1,9 +1,9 @@
 {
   "archive": "rs-visualdirector.zip",
-  "sha256": "928184d4314cdfd764be3fea5da881e7c221ff5f99153edd1439b96612b2b316",
+  "sha256": "b5fad04d76e32d5769acb0f0f4df37837195a3b8a703e58384005fa5888d73d8",
   "resourceFolder": "rs-visualdirector",
-  "manifestVersion": "cerulean",
-  "importedOn": "2026-10-14",
+  "manifestVersion": "2.9.0",
+  "importedOn": "2026-10-15",
   "sourceFiles": 15,
   "tebex": "https://reality-sucks-rp-webstore.tebex.io/package/7556700"
 }

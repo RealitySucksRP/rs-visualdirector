@@ -1,4 +1,4 @@
--- RS Visual Director v2.6.0 - Client
+-- RS Visual Director v2.8.0 - Client
 -- Focused cinematic phone UI, layered mood application, compare mode and developer scanner.
 
 local activeStyle = nil
@@ -13,6 +13,11 @@ local nuiReady = false
 local nuiReadyLogged = false
 local lastMenuPayload = nil
 local compareSnapshot = nil
+-- Temporary previews never go through the server, and are cancelled by new sync events.
+local previewBaseline = nil
+local previewActive = false
+local captureSequence = 0
+local captureBusy = false
 local lastReadyRequest = 0
 
 local scannerActive = false
@@ -226,7 +231,9 @@ local function sendMenuState()
         action = 'state',
         currentStyle = activeStyle,
         currentStrength = activeStrength or 0.0,
-        comparing = compareSnapshot ~= nil
+        comparing = compareSnapshot ~= nil,
+        previewActive = previewActive,
+        previewStyle = previewActive and activeStyle or nil
     })
 end
 
@@ -334,6 +341,43 @@ local function endCompare()
     return true
 end
 
+-- Local preview is intentionally never sent to server events or preferences.
+-- The baseline represents this client's pre-preview visual state.
+local function beginLocalPreview(styleName, strength)
+    if not menuOpen or scannerActive then return false end
+    if styleName ~= 'off' and not (Config.Styles and Config.Styles[styleName]) then return false end
+    if compareSnapshot then endCompare() end
+    if not previewActive then
+        previewBaseline = { style = activeStyle, strength = activeStrength }
+    end
+    previewActive = true
+    if styleName == 'off' then
+        clearStyle('local_preview_original')
+    else
+        applyStyle(styleName, strength, 'local_preview')
+    end
+    sendMenuState()
+    return true
+end
+
+local function stopLocalPreview(restore)
+    if not previewActive then return false end
+    local previous = previewBaseline
+    previewActive = false
+    previewBaseline = nil
+    captureSequence = captureSequence + 1 -- invalidate any pending screenshot callback
+    captureBusy = false
+    if restore ~= false then
+        if previous and previous.style and Config.Styles[previous.style] then
+            applyStyle(previous.style, previous.strength, 'preview_restored')
+        else
+            clearStyle('preview_restored_original')
+        end
+    end
+    sendMenuState()
+    return true
+end
+
 local function styleLayers(style)
     return {
         extraTimecycle = style.extraTimecycle ~= nil,
@@ -396,6 +440,7 @@ local function buildMenuStyles()
 end
 
 local function releaseNuiFocus(reason)
+    stopLocalPreview(true)
     endCompare()
     menuOpen = false
     SetNuiFocus(false, false)
@@ -406,6 +451,21 @@ end
 
 local function closeMenu(reason)
     releaseNuiFocus(reason or 'close')
+end
+
+-- Saved on the player's machine, not as global weather/state and not in a server DB.
+local function loadPhoneLayout()
+    local raw = GetResourceKvpString('rs_vd_director_layout_v2')
+    if raw and raw ~= '' then
+        local ok, value = pcall(json.decode, raw)
+        if ok and type(value) == 'table' then return value end
+    end
+    -- Migrate the old phone position instead of silently discarding it.
+    raw = GetResourceKvpString('rs_vd_phone_layout_v1')
+    if not raw or raw == '' then return nil end
+    local ok, legacy = pcall(json.decode, raw)
+    if not ok or type(legacy) ~= 'table' then return nil end
+    return { view = 'studio', phone = legacy, studio = { x = 0.5, y = 0.5, scale = 1.0 } }
 end
 
 local function makeMenuPayload(serverStyle, serverStrength, mode)
@@ -420,7 +480,9 @@ local function makeMenuPayload(serverStyle, serverStrength, mode)
         currentStyle = serverStyle or activeStyle,
         currentStrength = tonumber(serverStrength) or activeStrength or 0.0,
         mode = mode or (Config.AllowPersonalOverride and 'personal' or 'sync'),
-        comfort = comfort
+        comfort = comfort,
+        uiLayout = loadPhoneLayout(),
+        allowGameplayCaptures = menu.allowGameplayCaptures ~= false
     }
 end
 
@@ -463,6 +525,7 @@ local function openMenu(serverStyle, serverStrength, mode)
 end
 
 RegisterNetEvent('rs-visual:applyStyle', function(style, strength, force)
+    stopLocalPreview(false)
     if style == 'off' or not style then
         clearStyle('server')
         return
@@ -471,10 +534,11 @@ RegisterNetEvent('rs-visual:applyStyle', function(style, strength, force)
 end)
 
 RegisterNetEvent('rs-visual:loadSaved', function(style, strength)
+    stopLocalPreview(false)
     if style and Config.Styles[style] then applyStyle(style, strength, 'saved_preference') end
 end)
 
-RegisterNetEvent('rs-visual:clear', function(reason) clearStyle(reason or 'server') end)
+RegisterNetEvent('rs-visual:clear', function(reason) stopLocalPreview(false); clearStyle(reason or 'server') end)
 RegisterNetEvent('rs-visual:notify', function(msg) notify(msg) end)
 RegisterNetEvent('rs-visual:openMenu', function(serverStyle, serverStrength, mode)
     openMenu(serverStyle, serverStrength, mode)
@@ -494,13 +558,140 @@ RegisterNUICallback('ready', function(_, cb)
     cb({ ok = true })
 end)
 
+RegisterNUICallback('saveLayout', function(data, cb)
+    if not menuOpen or type(data) ~= 'table' then cb({ ok = false }); return end
+    local function sanitizedLayout(input)
+        if type(input) ~= 'table' then return nil end
+        local x, y, scale = tonumber(input.x), tonumber(input.y), tonumber(input.scale)
+        if not x or not y or not scale or x ~= x or y ~= y or scale ~= scale then return nil end
+        return {
+            x = math.max(0, math.min(1, x)),
+            y = math.max(0, math.min(1, y)),
+            scale = math.max(0.72, math.min(1.15, scale))
+        }
+    end
+    local phone = sanitizedLayout(data.phone)
+    local studio = sanitizedLayout(data.studio)
+    if not phone or not studio then cb({ ok = false }); return end
+    SetResourceKvp('rs_vd_director_layout_v2', json.encode({
+        view = data.view == 'phone' and 'phone' or 'studio',
+        phone = phone, studio = studio
+    }))
+    cb({ ok = true })
+end)
+
+RegisterNUICallback('previewStart', function(data, cb)
+    data = type(data) == 'table' and data or {}
+    cb({ ok = beginLocalPreview(tostring(data.style or ''), tonumber(data.strength)) })
+end)
+RegisterNUICallback('previewStop', function(_, cb)
+    cb({ ok = stopLocalPreview(true) })
+end)
+
+-- Optional private screenshot capture. No screenshot data is ever posted to the server.
+RegisterNUICallback('captureThumbnail', function(data, cb)
+    data = type(data) == 'table' and data or {}
+    local name = tostring(data.style or '')
+    if not menuOpen or captureBusy or (Config.Menu and Config.Menu.allowGameplayCaptures == false)
+        or (name ~= 'off' and not (Config.Styles and Config.Styles[name])) then
+        cb({ ok = false, reason = 'Unavailable or busy' }); return
+    end
+    if GetResourceState('screenshot-basic') ~= 'started' then
+        cb({ ok = false, reason = 'Start screenshot-basic before capturing real thumbnails' }); return
+    end
+    captureBusy = true
+    captureSequence = captureSequence + 1
+    local ticket = captureSequence
+    if not beginLocalPreview(name, tonumber(data.strength)) then
+        captureBusy = false
+        cb({ ok = false, reason = 'Local preview unavailable' }); return
+    end
+    cb({ ok = true })
+    CreateThread(function()
+        -- Let the existing fade finish and allow NUI to hide its chrome.
+        Wait(1550)
+        if not menuOpen or not captureBusy or ticket ~= captureSequence then return end
+        local success, failure = pcall(function()
+            exports['screenshot-basic']:requestScreenshot({ encoding = 'jpg', quality = 0.76 }, function(image)
+                if not menuOpen or ticket ~= captureSequence then return end
+                captureBusy = false
+                if type(image) == 'string' and image:sub(1, 11) == 'data:image/' then
+                    SendNUIMessage({ action = 'captureResult', style = name, image = image })
+                else
+                    SendNUIMessage({ action = 'captureResult', style = name, error = 'Screenshot service returned no image' })
+                end
+            end)
+        end)
+        if not success and ticket == captureSequence then
+            captureBusy = false
+            SendNUIMessage({ action = 'captureResult', style = name, error = tostring(failure) })
+        end
+    end)
+    CreateThread(function()
+        Wait(11000)
+        if captureBusy and captureSequence == ticket then
+            captureBusy = false
+            captureSequence = captureSequence + 1
+            if menuOpen then SendNUIMessage({ action = 'captureResult', style = name, error = 'Screenshot timed out' }) end
+        end
+    end)
+end)
+
+
+-- Save an actual Live Moment without altering the current synced or local-preview
+-- visual. The NUI hides its chrome and stores an image + look locally.
+RegisterNUICallback('captureMoment', function(_, cb)
+    if not menuOpen or captureBusy or (Config.Menu and Config.Menu.allowGameplayCaptures == false) then
+        cb({ ok = false, reason = 'Unavailable or busy' }); return
+    end
+    if GetResourceState('screenshot-basic') ~= 'started' then
+        cb({ ok = false, reason = 'Start screenshot-basic to save Live Moments' }); return
+    end
+    captureBusy = true
+    captureSequence = captureSequence + 1
+    local ticket = captureSequence
+    cb({ ok = true })
+    CreateThread(function()
+        -- NUI hides the phone / Studio before the screenshot begins.
+        Wait(850)
+        if not menuOpen or not captureBusy or captureSequence ~= ticket then return end
+        local success, failure = pcall(function()
+            exports['screenshot-basic']:requestScreenshot({ encoding = 'jpg', quality = 0.78 }, function(image)
+                if not menuOpen or not captureBusy or captureSequence ~= ticket then return end
+                captureBusy = false
+                if type(image) == 'string' and image:sub(1, 11) == 'data:image/' then
+                    SendNUIMessage({ action = 'momentCaptureResult', image = image })
+                else
+                    SendNUIMessage({ action = 'momentCaptureResult', error = 'No valid screenshot returned by screenshot-basic' })
+                end
+            end)
+        end)
+        if not success and captureSequence == ticket then
+            captureBusy = false
+            SendNUIMessage({ action = 'momentCaptureResult', error = tostring(failure) })
+        end
+    end)
+    CreateThread(function()
+        Wait(11000)
+        if captureBusy and captureSequence == ticket then
+            captureBusy = false
+            captureSequence = captureSequence + 1 -- reject late callbacks
+            if menuOpen then SendNUIMessage({ action = 'momentCaptureResult', error = 'Screenshot timed out' }) end
+        end
+    end)
+end)
+
 RegisterNUICallback('close', function(_, cb) closeMenu('nui_close'); cb({ ok = true }) end)
 RegisterNUICallback('applyStyle', function(data, cb)
+    if not menuOpen then cb({ ok = false }); return end
+    stopLocalPreview(true)
     data = data or {}
     TriggerServerEvent('rs-visual:menuSetStyle', tostring(data.style or ''), tonumber(data.strength) or nil)
     cb({ ok = true })
 end)
 RegisterNUICallback('clearStyle', function(_, cb)
+    if not menuOpen then cb({ ok = false }); return end
+    stopLocalPreview(true)
     TriggerServerEvent('rs-visual:menuClearStyle')
     cb({ ok = true })
 end)
